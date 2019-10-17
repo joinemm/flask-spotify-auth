@@ -42,23 +42,28 @@ def hello():
 
 @app.route('/spotify')
 def spotify():
-    state = generate_random_string(16)
-    user_id = request.args.get('userid')
-    resp = make_response()
-    resp.set_cookie('stateKey', state)
-    resp.set_cookie('userId', user_id)
+    state = request.args.get('id')
     redirect_url = get_auth_url(state)
-    return redirect(redirect_url)
+    
+    resp = make_response(redirect(redirect_url))
+    resp.set_cookie('stateKey', state)
+    return resp
 
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
     state = request.args.get('state')
     stored_state = request.cookies.get('stateKey')
-    user_id = request.args.get('userId')
-
+    
+    if code is None:
+        return "ERROR: Missing authorization code"
+    if state is None:
+        return "ERROR: Missing state"
+    if not state == stored_state:
+        return f"ERROR: State mismatch"
+    
     resp = make_response("You can now close this page")
-    resp.delete_cookie('stateKey')
+    # resp.delete_cookie('stateKey')
 
     params = {
         'code': code,
@@ -72,10 +77,12 @@ def callback():
     }
 
     response = requests.post('https://accounts.spotify.com/api/token', data=params, headers=headers)
-
-    print(response.json())
+    
+    data = response.json()
+    
+    
 
     return resp
 
 if __name__ == "__main__":
-    app.run(port=3000)
+    app.run(host='0.0.0.0')
